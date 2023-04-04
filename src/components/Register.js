@@ -1,6 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import * as auth from '../auth.js';
+import { Link } from 'react-router-dom';
   
 function Register(props) {
 
@@ -8,8 +7,6 @@ function Register(props) {
     email: '',
     password: ''
   });
-
-  const navigate = useNavigate();
 
   function handleChange(e) {
     const {name, value} = e.target;
@@ -23,19 +20,7 @@ function Register(props) {
   function handleSubmit(e) {
     e.preventDefault();
     const { email, password } = formValue;
-    auth.register(password, email)
-    .then((res) => {
-      if(res.data) {
-        navigate('/sign-in', {replace: true});
-        props.onSuccess();
-      } else {
-        props.onFail()
-      }
-    })
-    .catch((err) => {
-      console.log(err);
-      props.onFail()
-    });
+    props.onRegister(password, email);
   }
 
   return (

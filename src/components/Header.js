@@ -1,11 +1,9 @@
 import React from 'react';
-import { useLocation } from 'react-router';
-import { Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import logo from '../images/mesto-logo.svg';
 
 function Header(props) {
 
-  const location = useLocation();
   const navigate = useNavigate();
 
   function signOut() {
@@ -20,8 +18,10 @@ function Header(props) {
       <div className="header__container">
         {props.loggedIn && <p className="header__user-email">{props.userEmail }</p>}
         {props.loggedIn && <p className="header__auth-button" onClick={signOut}>Выйти</p>}
-        {location.pathname === '/sign-up' && <Link to='/sign-in' className="header__auth-button">Войти</Link>}
-        {location.pathname === '/sign-in' && <Link to='/sign-up' className="header__auth-button">Регистрация</Link>}
+        <Routes>
+          <Route path='/sign-up' element={<Link to='/sign-in' className="header__auth-button">Войти</Link>} />
+          <Route path='/sign-in' element={<Link to='/sign-up' className="header__auth-button">Регистрация</Link>} />
+        </Routes>
       </div>
     </header>
   );

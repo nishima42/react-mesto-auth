@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import Header from './Header.js';
 import Main from './Main.js';
@@ -13,31 +13,58 @@ import AddPlacePopup from './AddPlacePopup';
 import Login from './Login';
 import Register from './Register';
 import ProtectedRouteElement from './ProtectedRoute';
-import * as auth from '../auth.js';
+import * as auth from '../utils/auth.js';
 import InfoToolTip from './InfoToolTip';
 
 function App() {
 
-  const [isEditProfilePopupOpen, setIsEditProfilePopupOpen] = React.useState(false);
-  const [isAddPlacePopupOpen, setIsAddPlacePopupOpen] = React.useState(false);
-  const [isEditAvatarPopupOpen, setIsEditAvatarPopupOpen] = React.useState(false);
-  const [isInfoToolTipOpen, setIsInfoToolTipOpen] = React.useState(false);
-  const [isSuccess, setIsSuccess] = React.useState(false);
-  const [selectedCard, setSelectedCard] = React.useState({});
-  const [currentUser, setCurrentUser] = React.useState({});
-  const [cards, setCards] = React.useState([]);
-  const [loggedIn, setLoggedIn] = React.useState(false);
-  const [userEmail, setUserEmail] = React.useState('');
+  const [isEditProfilePopupOpen, setIsEditProfilePopupOpen] = useState(false);
+  const [isAddPlacePopupOpen, setIsAddPlacePopupOpen] = useState(false);
+  const [isEditAvatarPopupOpen, setIsEditAvatarPopupOpen] = useState(false);
+  const [isInfoToolTipOpen, setIsInfoToolTipOpen] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [selectedCard, setSelectedCard] = useState({});
+  const [currentUser, setCurrentUser] = useState({});
+  const [cards, setCards] = useState([]);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [infoToolTipMessage, setInfoToolTipMessage] = useState('');
 
   const navigate = useNavigate();
 
-  function handleSuccessfulRegistration() {
-    setIsSuccess(true);
-    handleInfoToolTipOpen();
+  function handleRegister(password, email) {
+    auth.register(password, email)
+    .then((res) => {
+      navigate('/sign-in', {replace: true});
+      setIsSuccess(true);
+      setInfoToolTipMessage('Вы успешно зарегистрировались!');
+      handleInfoToolTipOpen();
+    })
+    .catch((err) => {
+      console.log(err);
+      handleFail();
+    });
   }
 
-  function handleLogin() {
-    setLoggedIn(true);
+  function handleLogin(password, email) {
+    auth.authorize(password, email)
+    .then((data) => {
+      if(data.token) {
+        setLoggedIn(true);
+        setUserEmail(email);
+        navigate('/', {replace: true});
+      }
+    })
+    .catch((err) => {
+      console.log(err);
+      handleFail();
+    });
+  }
+
+  function handleFail() {
+    setIsSuccess(false);
+    setInfoToolTipMessage('Что-то пошло не так! Попробуйте ещё раз.');
+    handleInfoToolTipOpen();
   }
 
   function handleLogOut() {
@@ -45,18 +72,19 @@ function App() {
   }
 
   function tokenCheck() {
-    if (localStorage.getItem('token')) {
-      const token = localStorage.getItem('token');
-      if(token) {
-        auth.getContent(token)
-        .then((res) => {
-          if(res) {
-            setLoggedIn(true);
-            setUserEmail(res.data.email)
-            navigate('/', {replace: true})
-          }
-        });
-      }
+    const token = localStorage.getItem('token');
+    if(token) {
+      auth.getContent(token)
+      .then((res) => {
+        if(res) {
+          setLoggedIn(true);
+          setUserEmail(res.data.email)
+           navigate('/', {replace: true})
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+      });
     }
   }
 
@@ -145,37 +173,45 @@ function App() {
     });
   }
 
-  React.useEffect(() => {
+  function c(mes) {
+    console.log(mes);
+  }
+
+  useEffect(() => {
     tokenCheck();
   }, [])
 
-  React.useEffect (() => {
-    api.getUserInfo()
-  .then((userInfo) => {
-    setCurrentUser(userInfo);
-  })
-  .catch((err) => {
-    console.log(err);
+  useEffect (() => {
+    if(loggedIn) {
+      api.getUserInfo()
+      .then((userInfo) => {
+        setCurrentUser(userInfo);
+      })
+      .catch((err) => {
+        console.log(err);
   });
-  }, [])
+    }
+  }, [loggedIn])
 
-  React.useEffect(() => {
-    api.getCardArray()
-    .then((cardArray) => {
-      setCards(cardArray);
-    })
-    .catch((err) => {
-      console.log(err); 
-    });
-  }, [])
+  useEffect(() => {
+    if(loggedIn) {
+      api.getCardArray()
+      .then((cardArray) => {
+        setCards(cardArray);
+      })
+      .catch((err) => {
+        console.log(err); 
+      });
+    }
+  }, [loggedIn])
 
   return (
     <div className="page">
       <CurrentUserContext.Provider value={currentUser}>
         <Header loggedIn={loggedIn} handleLogOut={handleLogOut} userEmail={userEmail} />
         <Routes>
-          <Route path="/sign-up" element={<Register onSuccess={handleSuccessfulRegistration} onFail={handleInfoToolTipOpen} />} />
-          <Route path="/sign-in" element={<Login handleLogin={handleLogin} />} />
+          <Route path="/sign-up" element={<Register onRegister={handleRegister} />} />
+          <Route path="/sign-in" element={<Login onLogin={handleLogin} />} />
           <Route path="/" element={<ProtectedRouteElement element={Main} cards={cards} onCardLike={handleCardLike} onCardDelete={handleCardDelete} onAddPlace={handleAddPlaceClick}
           onCardClick={handleCardClick} onEditProfile={handleEditProfileClick} onEditAvatar={handleEditAvatarClick} loggedIn={loggedIn} />} />
         </Routes>
@@ -185,7 +221,7 @@ function App() {
         <PopupWithForm name="deleteCard" title="Вы уверены" />
         <EditAvatarPopup onUpdateAvatar={handleUpdateAvatar} isOpen={isEditAvatarPopupOpen} onClose={closeAllPopups} />
         <ImagePopup card={selectedCard} onClose={closeAllPopups}/>
-        <InfoToolTip onClose={closeAllPopups} isOpen={isInfoToolTipOpen} isSuccess={isSuccess} />
+        <InfoToolTip onClose={closeAllPopups} isOpen={isInfoToolTipOpen} isSuccess={isSuccess} message={infoToolTipMessage} />
       </CurrentUserContext.Provider>
     </div>
   );
